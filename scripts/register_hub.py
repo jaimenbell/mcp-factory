@@ -14,8 +14,8 @@ _CLAUDE_JSON = Path.home() / ".claude.json"
 _BACKUP_SUFFIX = ".day3-prereg-backup"
 _HUB_SERVER = Path(__file__).parent.parent / "hub_server.py"
 _SCAN_ROOTS = [
-    r"C:\Users\owner\projects",
-    r"C:\Users\owner\Claude",
+    r"C:\path\to\projects",
+    r"C:\path\to\Claude",
 ]
 
 

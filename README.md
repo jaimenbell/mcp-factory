@@ -32,16 +32,16 @@ Output always goes to `~/.claude.json.factory-test` by default — **never** to 
 
 ```bash
 # Dry-run diff: show what would change in ~/.claude.json
-python hub_server.py --scan C:\Users\owner\projects
+python hub_server.py --scan C:\path\to\projects
 
 # Apply: write ~/.claude.json after backing it up
-python hub_server.py --scan C:\Users\owner\projects --apply
+python hub_server.py --scan C:\path\to\projects --apply
 
 # Force-update entries already registered
-python hub_server.py --scan C:\Users\owner\projects --apply --force
+python hub_server.py --scan C:\path\to\projects --apply --force
 ```
 
-`--scan` discovers all `projects/*/mcp.yaml` files, validates each, and diffs them against the current `~/.claude.json`. Default root is `C:\Users\owner\projects`. With `--apply`, a timestamped backup is created at `~/.claude.json.scan-backup-<timestamp>` before writing.
+`--scan` discovers all `projects/*/mcp.yaml` files, validates each, and diffs them against the current `~/.claude.json`. Default root is `C:\path\to\projects`. With `--apply`, a timestamped backup is created at `~/.claude.json.scan-backup-<timestamp>` before writing.
 
 **Skip logic:** manifests whose name already exists in `~/.claude.json` are skipped unless `--force` is passed. This prevents accidentally overwriting manually-crafted entries.
 
@@ -53,13 +53,13 @@ python hub_server.py --serve
 
 # Serve with multiple scan roots (repeatable)
 python hub_server.py --serve \
-  --scan-root C:\Users\owner\projects \
-  --scan-root C:\Users\owner\Claude
+  --scan-root C:\path\to\projects \
+  --scan-root C:\path\to\Claude
 
 # Register+serve in one step (scan --apply then start hub)
 python hub_server.py --register \
-  --scan-root C:\Users\owner\projects \
-  --scan-root C:\Users\owner\Claude
+  --scan-root C:\path\to\projects \
+  --scan-root C:\path\to\Claude
 ```
 
 The hub scans all `mcp.yaml` manifests under each `--scan-root` at startup, then exposes every bot's tools under the `<bot>.<tool>` namespace (e.g., `fleet-health.fleet_status`, `my-bot.run_scan`). Tools are proxied to per-bot subprocess MCP servers with lazy startup.
