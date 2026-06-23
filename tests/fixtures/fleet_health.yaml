@@ -1,0 +1,41 @@
+# fleet-health fixture for tests — mirrors examples/fleet_health.yaml
+# runtime.script is a relative path resolved against this fixture's directory,
+# so it exists on any machine (see load_manifest's relative-script resolution).
+name: fleet-health
+description: >
+  Monitor the health of all services in a fleet.
+
+runtime:
+  type: python
+  command: "C:\\Python314\\python.exe"
+  script: "fleet_health_server.py"
+
+tools:
+  - name: fleet_status
+    description: Get GREEN/YELLOW/RED health status for all services.
+    args: []
+
+  - name: bot_status
+    description: Get health status for a single service.
+    args:
+      - name: bot_name
+        type: string
+        required: true
+        description: "Service identifier"
+
+  - name: recent_alerts
+    description: List services currently in RED or YELLOW status.
+    args:
+      - name: hours
+        type: number
+        required: false
+        description: "Lookback window in hours"
+
+  - name: dump_markdown_report
+    description: Generate full fleet health markdown report.
+    args: []
+
+env_required: []
+env: {}
+tags: [fleet, health]
+priority: high

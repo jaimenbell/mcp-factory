@@ -1,0 +1,57 @@
+# mcp.yaml — fleet-health MCP (example manifest)
+# Demonstrates referencing an existing server: the factory regenerates the
+# matching ~/.claude.json entry instead of scaffolding a new stub.
+#
+# runtime.script is relative, so it resolves against this file's directory and
+# works on any machine. Point it at your own server.py for real use.
+
+name: fleet-health
+description: >
+  Monitor the health of all services in a fleet.
+  Returns RED/YELLOW/GREEN status, error counts, last-run age, open work, and dry-run mode.
+  Use when asked about service health, fleet status, or which services are failing or stale.
+
+runtime:
+  type: python
+  command: "C:\\Python314\\python.exe"
+  script: "fleet_health_server.py"
+
+tools:
+  - name: fleet_status
+    description: >
+      Get GREEN/YELLOW/RED health status for all services.
+      Returns service name, status, error count, last-run age, open work,
+      dry-run mode, and status reasons for each service.
+    args: []
+
+  - name: bot_status
+    description: >
+      Get health status for a single service.
+      Known services are discovered from the fleet snapshot at runtime.
+    args:
+      - name: bot_name
+        type: string
+        required: true
+        description: "Service identifier (e.g. 'service-a')"
+
+  - name: recent_alerts
+    description: >
+      List services currently in RED or YELLOW status.
+      Note: reads live state.json snapshots — no historical log exists.
+      The hours param is accepted for API compatibility but does not filter.
+    args:
+      - name: hours
+        type: number
+        required: false
+        description: "Lookback window intent in hours (default 24)"
+
+  - name: dump_markdown_report
+    description: >
+      Generate a full fleet health markdown report with per-bot detail sections,
+      a summary table, and RED/YELLOW callouts.
+    args: []
+
+env_required: []
+env: {}
+tags: [fleet, health, monitoring, services]
+priority: high

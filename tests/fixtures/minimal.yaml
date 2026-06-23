@@ -1,0 +1,15 @@
+# Minimal valid manifest — no env, no tags, one tool with no args
+name: test-bot
+description: A minimal test bot for factory unit tests.
+
+runtime:
+  type: python
+  command: "C:\\Python314\\python.exe"
+
+tools:
+  - name: ping
+    description: Returns pong.
+    args: []
+
+env_required: []
+priority: low
