@@ -1,7 +1,9 @@
 """Workflow runner — discover, validate, and execute research-harness SKILL.md workflows.
 
-Phase 3 MVP. See vault/Research/Workflows/CLI Factory Research Harness — Master Plan.md
-for the contract this module conforms to.
+Discovers workflows from SKILL.md files on configured scan roots, validates their input
+schemas, checks output caches, and executes them via subprocess.  Output paths are
+resolved from each workflow's ``output_path_template`` frontmatter key; the optional
+``VAULT_ROOT`` environment variable controls the base directory for relative paths.
 
 Public API:
     discover(scan_roots=None) -> dict[str, dict]
@@ -331,12 +333,6 @@ def _expected_output_path(workflow: Workflow, inputs: dict[str, Any]) -> Optiona
         p = Path(rendered)
         return p if p.is_absolute() else VAULT_ROOT / p
 
-    if workflow.name == "paper-trading-postmortem":
-        ctx = _build_template_context(workflow, inputs)
-        return (
-            VAULT_ROOT / "Research" / "Bot Ops" / "Weekly Postmortems"
-            / f"{ctx['period_end']}-postmortem.md"
-        )
     return None
 
 

@@ -8,6 +8,7 @@ Usage (via hub_server.py):
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -18,7 +19,9 @@ from mcp_factory.manifest import Manifest, load_manifest
 from mcp_factory.config import build_claude_entry, compare_entries
 
 
-_DEFAULT_SCAN_ROOT = Path("C:/Users/owner/projects")
+_DEFAULT_SCAN_ROOT = Path(
+    os.environ.get("MCP_FACTORY_SCAN_ROOT", str(Path.home() / "projects"))
+)
 _CLAUDE_JSON = Path.home() / ".claude.json"
 
 

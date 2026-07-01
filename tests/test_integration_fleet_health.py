@@ -6,6 +6,7 @@ Skipped automatically if the fleet-health server script does not exist on disk
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -17,7 +18,8 @@ from mcp_factory.manifest import load_manifest
 from mcp_factory.runtime.subprocess_adapter import SubprocessAdapter
 
 _FLEET_HEALTH_MANIFEST = Path(__file__).parent.parent / "examples" / "fleet_health.yaml"
-_FLEET_HEALTH_SERVER = Path("C:/Users/owner/projects/shared/fleet_health_mcp/server.py")
+_fleet_health_server_env = os.environ.get("FLEET_HEALTH_SERVER_PATH", "")
+_FLEET_HEALTH_SERVER: Path | None = Path(_fleet_health_server_env) if _fleet_health_server_env else None
 
 
 @pytest.fixture(scope="module")
@@ -26,12 +28,12 @@ def fleet_manifest():
 
 
 def _fleet_server_available() -> bool:
-    return _FLEET_HEALTH_SERVER.exists()
+    return _FLEET_HEALTH_SERVER is not None and _FLEET_HEALTH_SERVER.exists()
 
 
 @pytest.mark.skipif(
     not _fleet_server_available(),
-    reason=f"fleet-health server not found at {_FLEET_HEALTH_SERVER}",
+    reason="fleet-health server not available (set FLEET_HEALTH_SERVER_PATH env var to the server.py path)",
 )
 class TestFleetHealthIntegration:
     def test_hub_spawns_fleet_health_subprocess(self, fleet_manifest):

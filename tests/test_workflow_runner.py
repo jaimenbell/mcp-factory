@@ -237,16 +237,15 @@ def test_output_path_template_period_end_derived(tmp_path: Path):
     assert out.name == "2026-05-03.md"
 
 
-def test_postmortem_fallback_path_unchanged(tmp_path: Path):
-    """Back-compat: the hardcoded postmortem path still resolves without a template."""
+def test_postmortem_no_template_returns_none(tmp_path: Path):
+    """Without output_path_template, any workflow (including paper-trading-postmortem) returns None."""
     root = tmp_path / "research"
     _write_skill(root, "paper-trading-postmortem", ttl=6)
     reg = wfr.discover([root])
     out = wfr._expected_output_path(
         reg["paper-trading-postmortem"], {"period": "2026-04-27..2026-05-03"}
     )
-    assert out is not None
-    assert out.parts[-3:] == ("Bot Ops", "Weekly Postmortems", "2026-05-03-postmortem.md")
+    assert out is None
 
 
 def _setup_cache_fixture(tmp_path: Path, monkeypatch) -> tuple[Path, dict]:

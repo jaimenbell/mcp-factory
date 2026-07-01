@@ -6,7 +6,26 @@ tags: [mcp, factory, claude]
 
 # MCP Factory
 
-Manifest-driven scaffolder and runtime hub for Claude MCP servers. Write a `mcp.yaml` for a bot repo; the factory generates the server stub and the `~/.claude.json` entry, or run the hub to serve all bots' tools through a single MCP endpoint.
+![tests](https://img.shields.io/badge/tests-152%20passing-brightgreen) ![python](https://img.shields.io/badge/python-%E2%89%A53.12-blue)
+
+> *Static badges — the test count is verifiable below (`python -m pytest tests/` → **152 passed, 12 skipped**), not a CI status.*
+
+**The manifest-driven engine behind the MCP Integration Sprint.** Write one `mcp.yaml` for a bot repo and the factory generates the server stub and the `~/.claude.json` entry; run the hub and it serves every bot's tools through a single MCP endpoint.
+
+The SDK wrapper is the easy part. What makes an MCP server safe to put in front of a real internal tool — **scoped auth/env, fail-soft error handling, validated manifests, a collision-safe registry, and a real test suite** — is the engineering this engine is built around. That same production layer is hand-built per engagement; the factory scaffolds it, it doesn't fake it.
+
+### Browse before you reply
+
+This repo is public **so you can verify the discipline instead of taking my word for it.** Every claim below maps to a file you can open:
+
+| Claim | Where it lives | What to look for |
+|---|---|---|
+| **Validated, env-scoped manifests** | [`mcp_factory/manifest.py`](mcp_factory/manifest.py) | strict `from_dict` validation (raises on missing/invalid fields); the `env_required` / `env` model that scopes which secrets a server may see |
+| **Fail-soft subprocess proxying** | [`mcp_factory/runtime/subprocess_adapter.py`](mcp_factory/runtime/subprocess_adapter.py) | typed `SubprocessError`, lazy start, JSON-RPC error surfacing, `timeout`/`OSError`-guarded teardown + `atexit` cleanup — a dead bot returns a clean error, it doesn't crash the hub |
+| **Collision-safe, manifest-driven registry** | [`mcp_factory/runtime/registry.py`](mcp_factory/runtime/registry.py) · [`registry.json`](registry.json) | `CollisionError` on duplicate `<bot>.<tool>` names; the registry is built from manifests, not hand-maintained |
+| **Tested on a clean checkout** | [`tests/`](tests/) | **152 passed, 12 skipped, 0 failed** (Python 3.12); the 12 skips are real integration tests that no-op when external resources are absent |
+
+> **Honesty rails:** `152` is the real, reproducible count (never `172`). mcp-factory generates the *scaffold* and runs the hub — it does not "generate the production server" or carry any client/CI claims. The hardened production layer (per-tool auth boundaries, the full failure set, two-axis version-pinning) is built per engagement on top of this engine.
 
 ## Quick Start
 

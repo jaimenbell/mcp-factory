@@ -6,6 +6,7 @@ Backs up first; never overwrites existing entries.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -13,10 +14,10 @@ from pathlib import Path
 _CLAUDE_JSON = Path.home() / ".claude.json"
 _BACKUP_SUFFIX = ".day3-prereg-backup"
 _HUB_SERVER = Path(__file__).parent.parent / "hub_server.py"
-_SCAN_ROOTS = [
-    r"C:\path\to\projects",
-    r"C:\path\to\Claude",
-]
+# Populate via MCP_FACTORY_SCAN_ROOTS (os.pathsep-delimited list of directories).
+# Example (Windows):  set MCP_FACTORY_SCAN_ROOTS=C:\Users\you\projects;C:\Users\you\Claude
+# Example (Unix):     export MCP_FACTORY_SCAN_ROOTS=/home/you/projects:/home/you/Claude
+_SCAN_ROOTS = [r for r in os.environ.get("MCP_FACTORY_SCAN_ROOTS", "").split(os.pathsep) if r]
 
 
 def register(*, dry_run: bool = False) -> int:
