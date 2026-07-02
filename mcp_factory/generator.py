@@ -10,15 +10,31 @@ from mcp_factory.manifest import Manifest
 
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 
+# Manifest arg type -> Python type hint, used by the fastmcp template so
+# generated tool signatures carry real types instead of raw JSON-schema dicts.
+_PY_TYPE_MAP = {
+    "string": "str",
+    "number": "float",
+    "boolean": "bool",
+    "object": "dict",
+    "array": "list",
+}
+
+
+def _pytype(arg_type: str) -> str:
+    return _PY_TYPE_MAP.get(arg_type, "str")
+
 
 def _get_jinja_env() -> Environment:
-    return Environment(
+    env = Environment(
         loader=FileSystemLoader(str(_TEMPLATES_DIR)),
         autoescape=select_autoescape([]),
         trim_blocks=True,
         lstrip_blocks=True,
         keep_trailing_newline=True,
     )
+    env.filters["pytype"] = _pytype
+    return env
 
 
 def generate_server(
@@ -56,7 +72,8 @@ def _generate_python_server(
     dry_run: bool,
 ) -> Path | None:
     env = _get_jinja_env()
-    template = env.get_template("python_server.py.j2")
+    template_name = "python_fastmcp.j2" if manifest.runtime.style == "fastmcp" else "python_server.py.j2"
+    template = env.get_template(template_name)
 
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     content = template.render(manifest=manifest, generated_at=generated_at)

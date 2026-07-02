@@ -14,7 +14,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-cov"]
+dev = ["pytest>=8.0", "pytest-cov", "fastmcp>=3.4.2"]
+# Only needed to run servers generated with runtime.style: fastmcp — the
+# factory itself (manifest/generator/hub) has no fastmcp import.
+fastmcp = ["fastmcp>=3.4.2"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

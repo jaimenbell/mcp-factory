@@ -16,6 +16,7 @@ from mcp_factory.manifest import (
     VALID_PRIORITIES,
     VALID_RUNTIME_TYPES,
     VALID_ARG_TYPES,
+    VALID_PYTHON_STYLES,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -80,6 +81,48 @@ class TestLoadManifest:
             tools: []
         """))
         with pytest.raises(ValueError, match="runtime.type"):
+            load_manifest(bad)
+
+    def test_runtime_style_defaults_to_raw(self, tmp_path):
+        mf = tmp_path / "no_style.yaml"
+        mf.write_text(textwrap.dedent("""\
+            name: x
+            description: test
+            runtime:
+              type: python
+              command: python.exe
+            tools: []
+        """))
+        m = load_manifest(mf)
+        assert m.runtime.style == "raw"
+        assert "raw" in VALID_PYTHON_STYLES and "fastmcp" in VALID_PYTHON_STYLES
+
+    def test_runtime_style_fastmcp_accepted(self, tmp_path):
+        mf = tmp_path / "fastmcp_style.yaml"
+        mf.write_text(textwrap.dedent("""\
+            name: x
+            description: test
+            runtime:
+              type: python
+              command: python.exe
+              style: fastmcp
+            tools: []
+        """))
+        m = load_manifest(mf)
+        assert m.runtime.style == "fastmcp"
+
+    def test_invalid_runtime_style_raises(self, tmp_path):
+        bad = tmp_path / "bad_style.yaml"
+        bad.write_text(textwrap.dedent("""\
+            name: x
+            description: test
+            runtime:
+              type: python
+              command: python.exe
+              style: django
+            tools: []
+        """))
+        with pytest.raises(ValueError, match="runtime.style"):
             load_manifest(bad)
 
     def test_invalid_arg_type_raises(self, tmp_path):

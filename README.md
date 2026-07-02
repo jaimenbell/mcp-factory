@@ -6,9 +6,9 @@ tags: [mcp, factory, claude]
 
 # MCP Factory
 
-![tests](https://img.shields.io/badge/tests-152%20passing-brightgreen) ![python](https://img.shields.io/badge/python-%E2%89%A53.12-blue)
+![tests](https://img.shields.io/badge/tests-179%20passing-brightgreen) ![python](https://img.shields.io/badge/python-%E2%89%A53.12-blue)
 
-> *Static badges — the test count is verifiable below (`python -m pytest tests/` → **152 passed, 12 skipped**), not a CI status.*
+> *Static badges — the test count is verifiable below (`python -m pytest tests/` → **179 passed, 8 skipped**), not a CI status.*
 
 **The manifest-driven engine behind the MCP Integration Sprint.** Write one `mcp.yaml` for a bot repo and the factory generates the server stub and the `~/.claude.json` entry; run the hub and it serves every bot's tools through a single MCP endpoint.
 
@@ -23,9 +23,9 @@ This repo is public **so you can verify the discipline instead of taking my word
 | **Validated, env-scoped manifests** | [`mcp_factory/manifest.py`](mcp_factory/manifest.py) | strict `from_dict` validation (raises on missing/invalid fields); the `env_required` / `env` model that scopes which secrets a server may see |
 | **Fail-soft subprocess proxying** | [`mcp_factory/runtime/subprocess_adapter.py`](mcp_factory/runtime/subprocess_adapter.py) | typed `SubprocessError`, lazy start, JSON-RPC error surfacing, `timeout`/`OSError`-guarded teardown + `atexit` cleanup — a dead bot returns a clean error, it doesn't crash the hub |
 | **Collision-safe, manifest-driven registry** | [`mcp_factory/runtime/registry.py`](mcp_factory/runtime/registry.py) · [`registry.json`](registry.json) | `CollisionError` on duplicate `<bot>.<tool>` names; the registry is built from manifests, not hand-maintained |
-| **Tested on a clean checkout** | [`tests/`](tests/) | **152 passed, 12 skipped, 0 failed** (Python 3.12); the 12 skips are real integration tests that no-op when external resources are absent |
+| **Tested on a clean checkout** | [`tests/`](tests/) | **179 passed, 8 skipped, 0 failed** (Python 3.12); the 8 skips are real integration tests that no-op when external resources are absent |
 
-> **Honesty rails:** `152` is the real, reproducible count (never `172`). mcp-factory generates the *scaffold* and runs the hub — it does not "generate the production server" or carry any client/CI claims. The hardened production layer (per-tool auth boundaries, the full failure set, two-axis version-pinning) is built per engagement on top of this engine.
+> **Honesty rails:** `179` is the real, reproducible count on this checkout. mcp-factory generates the *scaffold* and runs the hub — it does not "generate the production server" or carry any client/CI claims. The hardened production layer (per-tool auth boundaries, the full failure set, two-axis version-pinning) is built per engagement on top of this engine. That applies to both Python scaffold styles below — see "Two Python styles" for exactly what the fastmcp variant does and doesn't add on top of that baseline.
 
 ## Quick Start
 
@@ -100,6 +100,32 @@ runtime:
 
 Generated stubs use `@modelcontextprotocol/sdk` with stdio transport and zod for argument validation. See `examples/node_example.yaml` for a working demo.
 
+### Two Python styles: raw SDK vs. FastMCP
+
+For `runtime.type: python`, the factory can scaffold either of two styles from the exact same manifest:
+
+```yaml
+runtime:
+  type: python
+  command: "python"
+  style: raw       # default — official `mcp` SDK, hand-rolled list_tools/call_tool
+  # style: fastmcp # FastMCP v2 (jlowin/fastmcp), decorator-based tool registration
+```
+
+Both styles read the same `tools:` / `env_required:` fields and produce a server that speaks the same stdio JSON-RPC wire protocol — the runtime hub's `SubprocessAdapter` proxies either one without any adapter changes (see `tests/test_fastmcp_template.py::TestFastmcpServeSmoke` for a live generate-and-call test).
+
+| | `style: raw` (`python_server.py.j2`) | `style: fastmcp` (`python_fastmcp.j2`) |
+|---|---|---|
+| SDK | official `mcp` package, `mcp.server.Server` | `fastmcp` (pinned `fastmcp>=3.4.2`, tested against 3.4.2) |
+| Tool registration | manual `@server.list_tools()` / `@server.call_tool()` dispatch | one `@mcp.tool(...)`-decorated function per tool |
+| Arg schema | hand-built JSON Schema dict per arg | `Annotated[type, Field(description=...)]` on real Python parameters — FastMCP derives the JSON Schema, including required/optional, from the signature |
+| Tool body | `# TODO: implement` stub | same stub, wrapped in `try/except Exception` — a runtime error in a filled-in implementation returns a structured `{"status": "error", ...}` instead of crashing the process |
+| `env_required` | not enforced at scaffold level | rendered into a `_check_required_env()` startup check that warns to stderr if a declared var is missing — a presence check, not credential validation |
+
+**Gaps, stated honestly:** neither style implements per-tool authorization, rate limiting, or the "full failure set" the hub-level `subprocess_adapter.py` gives you for free (typed errors, lazy start, `atexit` cleanup) — that's still a per-engagement build on top of either scaffold. The fastmcp template's fail-soft wrapper and env-presence check are new, real code (read `templates/python_fastmcp.j2`), not a marketing claim about auth — they were added because FastMCP's decorator model made them cheap to include cleanly; they have not (yet) been backported to the raw template, which is why the two styles differ slightly in what ships out of the box. If your engagement needs FastMCP-specific features beyond this (resources, prompts, HTTP/SSE transport, middleware-based auth), the generated file is a normal FastMCP app — extend it directly.
+
+See `examples/fastmcp_example.yaml` for a working demo manifest.
+
 ## mcp.yaml Schema
 
 ```yaml
@@ -112,6 +138,7 @@ runtime:                       # REQUIRED
   command: "C:\\Python314\\python.exe"  # full path to interpreter
   script: "path/to/server.py"  # existing server (skips scaffold generation)
   output: "path/to/out.py"     # where to write generated scaffold (omit = auto)
+  style: raw                   # python only: raw (default) | fastmcp — see "Two Python styles"
 
 tools:                         # REQUIRED — list of MCP tools to expose
   - name: tool_name            # REQUIRED
@@ -233,7 +260,9 @@ mcp-factory/
 │       ├── registry.py            # tool registry with collision detection
 │       └── hub.py                 # async hub MCP server
 ├── templates/
-│   └── python_server.py.j2    # Jinja2 template for generated stubs
+│   ├── python_server.py.j2    # Jinja2 template — raw mcp SDK stubs (style: raw, default)
+│   ├── python_fastmcp.j2      # Jinja2 template — FastMCP v2 stubs (style: fastmcp)
+│   └── node_server.js.j2      # Jinja2 template for generated Node.js stubs
 ├── tests/
 │   ├── fixtures/
 │   │   ├── fleet_health.yaml   # Day 1 self-verification fixture
@@ -248,6 +277,7 @@ mcp-factory/
 │   ├── test_mcp_pkg.py
 │   ├── test_node_template.py
 │   ├── test_python_template.py
+│   ├── test_fastmcp_template.py  # style: fastmcp generation + import + serve-smoke tests
 │   ├── test_register_flag.py
 │   ├── test_registration.py
 │   ├── test_smoke_hub.py
@@ -255,7 +285,9 @@ mcp-factory/
 │   ├── test_workflow_runner.py  # Day 4: workflow_runner unit + integration tests
 │   └── test_integration_fleet_health.py  # live integration tests (skipped if server absent)
 ├── examples/
-│   └── fleet_health.yaml      # Example manifest referencing an existing server
+│   ├── fleet_health.yaml      # Example manifest referencing an existing server
+│   ├── node_example.yaml      # Example manifest for the node template
+│   └── fastmcp_example.yaml   # Example manifest for the fastmcp template
 └── pyproject.toml
 ```
 
@@ -275,8 +307,11 @@ confirms the factory produces a matching `~/.claude.json` entry.
 python -m pytest tests/ -v
 ```
 
-On a clean checkout (Python 3.12): **152 passed, 12 skipped, 0 failed.**
+On a clean checkout (Python 3.12), with `pip install -e .[dev]`: **179 passed, 8 skipped, 0 failed.**
 
-The 12 skipped tests are real integration tests that need external resources and skip automatically when those are absent:
-- `test_integration_fleet_health.py` requires a fleet-health `server.py` on disk.
-- `test_smoke_hub.py` spawns the hub and needs discoverable `mcp.yaml` manifests — set `MCP_FACTORY_SMOKE_ROOTS` (os.pathsep-separated scan roots) to exercise them.
+The 8 skipped tests are real integration tests that need external resources and skip automatically when those are absent:
+- `test_integration_fleet_health.py` (5 tests) requires a fleet-health `server.py` on disk (`FLEET_HEALTH_SERVER_PATH`).
+- `test_node_template.py` (1 test) requires `node` and `@modelcontextprotocol/sdk` (`node_modules/`) to be present.
+- `test_watcher.py` (2 tests) requires the `watchdog` package.
+
+The fastmcp-style template tests (`test_fastmcp_template.py`) are not in this skip list — `fastmcp` is installed as a `[dev]` extra, so they run for real on a standard dev setup.

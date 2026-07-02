@@ -8,6 +8,7 @@ Schema:
         command: str             # full path to interpreter / executable
         script: str              # path to existing MCP server script
         output: str              # (optional) where to write a generated scaffold
+        style: raw | fastmcp     # (optional, python only) scaffold style — default "raw"
     tools:
         - name: str
           description: str
@@ -33,6 +34,7 @@ import yaml
 VALID_RUNTIME_TYPES = {"python", "node", "binary"}
 VALID_PRIORITIES = {"high", "medium", "low"}
 VALID_ARG_TYPES = {"string", "number", "boolean", "object", "array"}
+VALID_PYTHON_STYLES = {"raw", "fastmcp"}
 
 
 @dataclass
@@ -90,6 +92,7 @@ class RuntimeSpec:
     command: str
     script: str = ""
     output: str = ""
+    style: str = "raw"
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "RuntimeSpec":
@@ -98,11 +101,15 @@ class RuntimeSpec:
             raise ValueError(f"runtime.type '{rt}' invalid. Valid: {VALID_RUNTIME_TYPES}")
         if "command" not in d:
             raise ValueError("runtime missing required field 'command'")
+        style = d.get("style", "raw")
+        if style not in VALID_PYTHON_STYLES:
+            raise ValueError(f"runtime.style '{style}' invalid. Valid: {VALID_PYTHON_STYLES}")
         return cls(
             type=rt,
             command=str(d["command"]),
             script=str(d.get("script", "")),
             output=str(d.get("output", "")),
+            style=style,
         )
 
     @property
