@@ -35,7 +35,9 @@ schema at `https://static.modelcontextprotocol.io/schemas/2025-12-11/server.sche
 `ServerDetail.required = [name, description, version]`). No `packages` or
 `remotes` block is included yet.
 
-**Operator decision needed** before a real `mcp-publisher publish` will produce
+**DECIDED 2026-07-03 12:15 MT (operator): `jaimenbell-mcp-factory` + `jaimenbell-github-mcp`** (both verified FREE on PyPI at decision time); desktop-mcp/bus-mcp keep their own free names. pyproject names, server.json packages blocks, and README mcp-name ownership markers all updated in-repo same pass. Original options preserved below.
+
+~~**Operator decision needed**~~ before a real `mcp-publisher publish` will produce
 a useful (installable) listing:
 - Publish `mcp-factory` and `github-mcp` to PyPI under different available
   names (e.g. `mcp-factory-jaimenbell`, `jaimenbell-github-mcp`), or

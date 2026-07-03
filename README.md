@@ -315,3 +315,6 @@ The 8 skipped tests are real integration tests that need external resources and 
 - `test_watcher.py` (2 tests) requires the `watchdog` package.
 
 The fastmcp-style template tests (`test_fastmcp_template.py`) are not in this skip list — `fastmcp` is installed as a `[dev]` extra, so they run for real on a standard dev setup.
+
+<!-- MCP registry ownership marker -->
+mcp-name: io.github.jaimenbell/mcp-factory

@@ -6,5 +6,15 @@
   "repository": {
     "url": "https://github.com/jaimenbell/MCP-Factory",
     "source": "github"
-  }
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "jaimenbell-mcp-factory",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
 }
