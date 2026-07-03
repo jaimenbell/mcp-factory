@@ -1,0 +1,10 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.jaimenbell/mcp-factory",
+  "description": "Manifest-driven MCP server scaffolder and runtime hub for tool integrations.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/jaimenbell/MCP-Factory",
+    "source": "github"
+  }
+}
