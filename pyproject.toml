@@ -28,3 +28,6 @@ testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 include = ["mcp_factory*"]
+
+[tool.setuptools.package-data]
+mcp_factory = ["templates/*.j2"]

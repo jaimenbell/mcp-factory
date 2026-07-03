@@ -134,7 +134,7 @@ Both styles read the same `tools:` / `env_required:` fields and produce a server
 | Tool body | `# TODO: implement` stub | same stub, wrapped in `try/except Exception` — a runtime error in a filled-in implementation returns a structured `{"status": "error", ...}` instead of crashing the process |
 | `env_required` | not enforced at scaffold level | rendered into a `_check_required_env()` startup check that warns to stderr if a declared var is missing — a presence check, not credential validation |
 
-**Gaps, stated honestly:** neither style implements per-tool authorization, rate limiting, or the "full failure set" the hub-level `subprocess_adapter.py` gives you for free (typed errors, lazy start, `atexit` cleanup) — that's still a per-engagement build on top of either scaffold. The fastmcp template's fail-soft wrapper and env-presence check are new, real code (read `templates/python_fastmcp.j2`), not a marketing claim about auth — they were added because FastMCP's decorator model made them cheap to include cleanly; they have not (yet) been backported to the raw template, which is why the two styles differ slightly in what ships out of the box. If your engagement needs FastMCP-specific features beyond this (resources, prompts, HTTP/SSE transport, middleware-based auth), the generated file is a normal FastMCP app — extend it directly.
+**Gaps, stated honestly:** neither style implements per-tool authorization, rate limiting, or the "full failure set" the hub-level `subprocess_adapter.py` gives you for free (typed errors, lazy start, `atexit` cleanup) — that's still a per-engagement build on top of either scaffold. The fastmcp template's fail-soft wrapper and env-presence check are new, real code (read `mcp_factory/templates/python_fastmcp.j2`), not a marketing claim about auth — they were added because FastMCP's decorator model made them cheap to include cleanly; they have not (yet) been backported to the raw template, which is why the two styles differ slightly in what ships out of the box. If your engagement needs FastMCP-specific features beyond this (resources, prompts, HTTP/SSE transport, middleware-based auth), the generated file is a normal FastMCP app — extend it directly.
 
 See `examples/fastmcp_example.yaml` for a working demo manifest.
 
@@ -267,14 +267,14 @@ mcp-factory/
 │   ├── config.py              # claude.json entry builder + comparator
 │   ├── scan.py                # --scan mode: manifest discovery + diff/apply
 │   ├── workflow_runner.py     # Day 4: standalone CLI harness for SKILL.md workflows
+│   ├── templates/              # packaged as data so `pip install` ships them too
+│   │   ├── python_server.py.j2    # Jinja2 template — raw mcp SDK stubs (style: raw, default)
+│   │   ├── python_fastmcp.j2      # Jinja2 template — FastMCP v2 stubs (style: fastmcp)
+│   │   └── node_server.js.j2      # Jinja2 template for generated Node.js stubs
 │   └── runtime/
 │       ├── subprocess_adapter.py  # subprocess MCP client (JSON-RPC proxy)
 │       ├── registry.py            # tool registry with collision detection
 │       └── hub.py                 # async hub MCP server
-├── templates/
-│   ├── python_server.py.j2    # Jinja2 template — raw mcp SDK stubs (style: raw, default)
-│   ├── python_fastmcp.j2      # Jinja2 template — FastMCP v2 stubs (style: fastmcp)
-│   └── node_server.js.j2      # Jinja2 template for generated Node.js stubs
 ├── tests/
 │   ├── fixtures/
 │   │   ├── fleet_health.yaml   # Day 1 self-verification fixture

@@ -20,7 +20,7 @@ from mcp_factory.manifest import load_manifest
 from mcp_factory.generator import generate_server, scaffold_summary
 
 _EXAMPLES = Path(__file__).parent.parent / "examples"
-_TEMPLATES = Path(__file__).parent.parent / "templates"
+_TEMPLATES = Path(__file__).parent.parent / "mcp_factory" / "templates"
 _NODE_MODULES = Path(__file__).parent.parent / "node_modules"
 
 

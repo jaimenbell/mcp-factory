@@ -2,13 +2,19 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from importlib import resources
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from mcp_factory.manifest import Manifest
 
-_TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+# Package-relative resolution (importlib.resources) so this works identically
+# from a repo checkout AND a wheel/sdist install — templates ship as package
+# data under mcp_factory/templates/ (see pyproject.toml package-data), not at
+# the repo root, so a pip-installed wheel (which only ships the mcp_factory/
+# tree) still finds them.
+_TEMPLATES_DIR = Path(str(resources.files("mcp_factory") / "templates"))
 
 # Manifest arg type -> Python type hint, used by the fastmcp template so
 # generated tool signatures carry real types instead of raw JSON-schema dicts.

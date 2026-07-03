@@ -24,7 +24,7 @@ from mcp_factory.manifest import load_manifest
 from mcp_factory.generator import generate_server
 
 _EXAMPLES = Path(__file__).parent.parent / "examples"
-_TEMPLATES = Path(__file__).parent.parent / "templates"
+_TEMPLATES = Path(__file__).parent.parent / "mcp_factory" / "templates"
 
 _FASTMCP_AVAILABLE = importlib.util.find_spec("fastmcp") is not None
 
