@@ -316,5 +316,10 @@ The 8 skipped tests are real integration tests that need external resources and 
 
 The fastmcp-style template tests (`test_fastmcp_template.py`) are not in this skip list — `fastmcp` is installed as a `[dev]` extra, so they run for real on a standard dev setup.
 
+
+## Commercial support
+
+Maintained by [Jaimen Bell](https://jaimenbell.dev). For production MCP integrations, custom servers, or agent-reliability work, see [jaimenbell.dev](https://jaimenbell.dev) or sponsor ongoing maintenance via [GitHub Sponsors](https://github.com/sponsors/jaimenbell).
+
 <!-- MCP registry ownership marker -->
 mcp-name: io.github.jaimenbell/mcp-factory
