@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jaimenbell-mcp-factory"
-version = "0.1.0"
+version = "0.1.1"
 readme = "README.md"
 description = "Manifest-driven MCP server scaffolder and runtime hub for Claude tool integrations"
 requires-python = ">=3.12"
@@ -13,6 +13,9 @@ dependencies = [
     "jinja2>=3.1",
     "mcp>=1.0",
 ]
+
+[project.scripts]
+mcp-factory-hub = "mcp_factory.cli:run"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-cov", "fastmcp>=3.4.2"]

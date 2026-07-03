@@ -6,9 +6,21 @@ tags: [mcp, factory, claude]
 
 # MCP Factory
 
-![tests](https://img.shields.io/badge/tests-179%20passing-brightgreen) ![python](https://img.shields.io/badge/python-%E2%89%A53.12-blue)
+![tests](https://img.shields.io/badge/tests-179%20passing-brightgreen) ![python](https://img.shields.io/badge/python-%E2%89%A53.12-blue) [![PyPI](https://img.shields.io/pypi/v/jaimenbell-mcp-factory)](https://pypi.org/project/jaimenbell-mcp-factory/) [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.jaimenbell%2Fmcp--factory-blueviolet)](https://registry.modelcontextprotocol.io/)
 
 > *Static badges — the test count is verifiable below (`python -m pytest tests/` → **179 passed, 8 skipped**), not a CI status.*
+
+## 60-Second Quickstart
+
+**From PyPI (registry users):**
+
+```bash
+pip install jaimenbell-mcp-factory
+mcp-factory-hub --serve
+# equivalent: python -m mcp_factory --serve
+```
+
+**From a git checkout (contributors):** see the `python hub_server.py ...` examples throughout this README — `hub_server.py` at the repo root is a backward-compat wrapper around the same `mcp_factory.cli` module the console script runs, so behavior is identical either way.
 
 **The manifest-driven engine behind the MCP Integration Sprint.** Write one `mcp.yaml` for a bot repo and the factory generates the server stub and the `~/.claude.json` entry; run the hub and it serves every bot's tools through a single MCP endpoint.
 

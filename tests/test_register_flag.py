@@ -50,7 +50,10 @@ class TestRegisterFlag:
 
     def test_register_applies_scan_then_calls_serve(self, tmp_path):
         """_run_register runs scan+apply, then calls _run_serve."""
-        import hub_server as hs
+        # Patch at mcp_factory.cli (the defining module) -- hub_server.py is now
+        # a thin re-export wrapper, and Python resolves _run_register's internal
+        # call to _run_serve against cli.py's own globals, not the importer's.
+        import mcp_factory.cli as hs
 
         # Set up a temp claude.json target
         target = tmp_path / "claude.json"
@@ -80,7 +83,7 @@ class TestRegisterFlag:
 
     def test_register_with_no_changes_still_calls_serve(self, tmp_path):
         """Even if scan finds nothing to add, serve still starts."""
-        import hub_server as hs
+        import mcp_factory.cli as hs
 
         target = tmp_path / "claude.json"
         target.write_text(json.dumps({"mcpServers": {}}), encoding="utf-8")
