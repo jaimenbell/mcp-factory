@@ -5,3 +5,22 @@ __pycache__/
 *.egg-info/
 .venv/
 *.bak
+
+# runtime artifacts + secrets hardening (Fleet hygiene 2026-07-08)
+registry.json
+*.db
+*.sqlite
+*.sqlite3
+*.jsonl
+*.log
+.env
+.env.*
+.env.local
+.env.production
+*.key
+*.pem
+state.json
+exposure.json
+risk_state.json
+ledger.json
+node_modules/
