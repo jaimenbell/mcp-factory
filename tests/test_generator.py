@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import json
+import textwrap
 from pathlib import Path
 
 import pytest
 
-from mcp_factory.manifest import load_manifest
+from mcp_factory.manifest import load_manifest, Manifest, RuntimeSpec, ToolSpec
 from mcp_factory.generator import generate_server, scaffold_summary
 from mcp_factory.config import build_claude_entry, compare_entries, write_config_file
 
@@ -120,6 +121,82 @@ class TestGenerateServer:
         content = out.read_text()
         for tool in ["fleet_status", "bot_status", "recent_alerts", "dump_markdown_report"]:
             assert f'name="{tool}"' in content, f"Tool '{tool}' not found in generated stub"
+
+
+class TestSecurityCodegenInjection:
+    """P1: a malicious name must never reach codegen; parse fails closed so no
+    server file is produced. Valid manifests are unchanged (no regression)."""
+
+    MALICIOUS = 'x";import os;os.system("calc")#'
+
+    def _malicious_manifest_yaml(self, out_target: str) -> str:
+        return textwrap.dedent(f"""\
+            name: '{self.MALICIOUS}'
+            description: pwned
+            runtime:
+              type: python
+              command: python.exe
+              output: {out_target}
+            tools:
+              - name: ping
+                description: p
+        """)
+
+    def test_malicious_manifest_never_generates_file(self, tmp_path):
+        target = tmp_path / "evil_server.py"
+        mf = tmp_path / "evil.yaml"
+        mf.write_text(self._malicious_manifest_yaml(str(target.name)))
+        # Parse must fail closed — before any codegen.
+        with pytest.raises(ValueError):
+            m = load_manifest(mf)
+            generate_server(m, tmp_path)
+        assert not target.exists()
+
+    def test_valid_manifest_output_unchanged(self, tmp_path):
+        """Regression: a clean manifest generates the same content as before."""
+        m = load_manifest(FIXTURES / "minimal.yaml")
+        out = generate_server(m, tmp_path)
+        content = out.read_text()
+        assert 'name="ping"' in content
+        assert 'Server("test-bot")' in content
+        # No injected import/os.system leaked in.
+        assert "os.system" not in content
+
+
+class TestSecurityOutputPathTraversal:
+    """P2: manifest.runtime.output must not escape the output dir."""
+
+    def _manifest(self, output: str) -> Manifest:
+        return Manifest(
+            name="safe-server",
+            description="d",
+            runtime=RuntimeSpec.from_dict(
+                {"type": "python", "command": "python.exe", "output": output}
+            ),
+            tools=[ToolSpec.from_dict({"name": "ping", "description": "p"})],
+        )
+
+    def test_parent_traversal_rejected(self, tmp_path):
+        m = self._manifest("../../evil.py")
+        with pytest.raises(ValueError, match="escapes|traversal|relative"):
+            generate_server(m, tmp_path / "out")
+        assert not (tmp_path / "evil.py").exists()
+
+    def test_absolute_path_rejected(self, tmp_path):
+        # Absolute path outside output_dir (works on POSIX and Windows).
+        abs_target = tmp_path / "elsewhere" / "evil.py"
+        m = self._manifest(str(abs_target))
+        with pytest.raises(ValueError, match="absolute|relative"):
+            generate_server(m, tmp_path / "out")
+        assert not abs_target.exists()
+
+    def test_normal_relative_path_still_works(self, tmp_path):
+        out_dir = tmp_path / "out"
+        m = self._manifest("sub/ping_server.py")
+        result = generate_server(m, out_dir)
+        assert result is not None and result.exists()
+        # Written inside output_dir.
+        assert str(out_dir.resolve()) in str(result.resolve())
 
 
 class TestBuildClaudeEntry:

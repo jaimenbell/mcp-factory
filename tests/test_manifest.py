@@ -154,6 +154,88 @@ class TestLoadManifest:
         assert m.tags == []
 
 
+class TestSecurityIdentifierValidation:
+    """P1: manifest.name / tool.name / arg.name are rendered RAW into generated
+    source. A crafted name must be rejected at parse time (fail closed) before
+    any code generation can occur. HTML-escaping does not make an identifier
+    safe — strict charset validation is the control."""
+
+    # The confirmed code-execution payload: quote closes the string, newline
+    # ends the statement, then attacker code runs at module import time.
+    MALICIOUS_NAME = 'x";import os;os.system("calc")#'
+
+    def test_malicious_manifest_name_rejected(self, tmp_path):
+        bad = tmp_path / "bad.yaml"
+        bad.write_text(textwrap.dedent(f"""\
+            name: '{self.MALICIOUS_NAME}'
+            description: test
+            runtime:
+              type: python
+              command: python.exe
+            tools:
+              - name: ping
+                description: p
+        """))
+        with pytest.raises(ValueError, match="name"):
+            load_manifest(bad)
+
+    def test_malicious_tool_name_rejected(self, tmp_path):
+        bad = tmp_path / "bad.yaml"
+        bad.write_text(textwrap.dedent(f"""\
+            name: safe-server
+            description: test
+            runtime:
+              type: python
+              command: python.exe
+            tools:
+              - name: '{self.MALICIOUS_NAME}'
+                description: p
+        """))
+        with pytest.raises(ValueError, match="tool.name"):
+            load_manifest(bad)
+
+    def test_malicious_arg_name_rejected(self, tmp_path):
+        bad = tmp_path / "bad.yaml"
+        bad.write_text(textwrap.dedent(f"""\
+            name: safe-server
+            description: test
+            runtime:
+              type: python
+              command: python.exe
+            tools:
+              - name: ping
+                description: p
+                args:
+                  - name: '{self.MALICIOUS_NAME}'
+                    type: string
+        """))
+        with pytest.raises(ValueError, match="arg.name"):
+            load_manifest(bad)
+
+    def test_newline_in_name_rejected(self):
+        with pytest.raises(ValueError):
+            ToolSpec.from_dict({"name": "foo\nimport os", "description": "d"})
+
+    def test_hyphen_allowed_in_manifest_name(self, tmp_path):
+        """Server names use hyphens (fleet-health, test-bot) — must still parse."""
+        m = load_manifest(FIXTURES / "fleet_health.yaml")
+        assert m.name == "fleet-health"
+
+    def test_hyphen_rejected_in_tool_name(self):
+        """tool.name is a bare Python/JS identifier — no hyphens."""
+        with pytest.raises(ValueError, match="tool.name"):
+            ToolSpec.from_dict({"name": "bad-tool", "description": "d"})
+
+    def test_valid_identifier_names_accepted(self):
+        t = ToolSpec.from_dict({
+            "name": "fleet_status",
+            "description": "ok",
+            "args": [{"name": "bot_name", "type": "string"}],
+        })
+        assert t.name == "fleet_status"
+        assert t.args[0].name == "bot_name"
+
+
 class TestArgSpec:
     def test_optional_arg_required_false(self):
         arg = ArgSpec.from_dict({"name": "hours", "type": "number", "required": False})

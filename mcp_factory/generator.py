@@ -31,6 +31,38 @@ def _pytype(arg_type: str) -> str:
     return _PY_TYPE_MAP.get(arg_type, "str")
 
 
+def _resolve_output_path(manifest: Manifest, output_dir: Path, default_name: str) -> Path:
+    """Resolve where the scaffold is written, confining it under ``output_dir``.
+
+    Security: ``manifest.runtime.output`` comes from an untrusted manifest. Used
+    verbatim it allows an absolute path or ``..`` traversal to write generated
+    (attacker-controlled) source anywhere on the buyer's filesystem. This
+    resolves the path against ``output_dir`` and rejects anything that escapes
+    it (absolute paths, drive-qualified paths, or ``..`` traversal) via a
+    realpath containment check — fail closed before any file is written.
+    """
+    output_dir_resolved = output_dir.resolve()
+
+    if manifest.runtime.output_path is None:
+        return output_dir_resolved / default_name
+
+    raw = manifest.runtime.output
+    candidate = Path(raw)
+    if candidate.is_absolute() or candidate.drive or candidate.root:
+        raise ValueError(
+            f"runtime.output {raw!r} must be a relative path inside the output "
+            "directory; absolute paths are rejected for safety."
+        )
+
+    resolved = (output_dir_resolved / candidate).resolve()
+    if resolved != output_dir_resolved and output_dir_resolved not in resolved.parents:
+        raise ValueError(
+            f"runtime.output {raw!r} escapes the output directory "
+            f"{str(output_dir_resolved)!r}; path traversal ('..') is rejected."
+        )
+    return resolved
+
+
 def _get_jinja_env() -> Environment:
     env = Environment(
         loader=FileSystemLoader(str(_TEMPLATES_DIR)),
@@ -84,11 +116,11 @@ def _generate_python_server(
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     content = template.render(manifest=manifest, generated_at=generated_at)
 
-    # Use manifest.runtime.output if specified, else default to output_dir/<name>_server.py
-    if manifest.runtime.output_path:
-        out_path = manifest.runtime.output_path
-    else:
-        out_path = output_dir / f"{manifest.name.replace('-', '_')}_server.py"
+    # Use manifest.runtime.output if specified, else default to output_dir/<name>_server.py.
+    # _resolve_output_path confines the target under output_dir (see its docstring).
+    out_path = _resolve_output_path(
+        manifest, output_dir, f"{manifest.name.replace('-', '_')}_server.py"
+    )
 
     if dry_run:
         print(f"[dry-run] Would write {out_path} ({len(content)} chars)")
@@ -119,10 +151,9 @@ def _generate_node_server(
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     content = template.render(manifest=manifest, generated_at=generated_at)
 
-    if manifest.runtime.output_path:
-        out_path = manifest.runtime.output_path
-    else:
-        out_path = output_dir / f"{manifest.name.replace('-', '_')}_server.js"
+    out_path = _resolve_output_path(
+        manifest, output_dir, f"{manifest.name.replace('-', '_')}_server.js"
+    )
 
     if dry_run:
         print(f"[dry-run] Would write {out_path} ({len(content)} chars)")

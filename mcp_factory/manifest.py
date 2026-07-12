@@ -24,6 +24,7 @@ Schema:
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,53 @@ VALID_RUNTIME_TYPES = {"python", "node", "binary"}
 VALID_PRIORITIES = {"high", "medium", "low"}
 VALID_ARG_TYPES = {"string", "number", "boolean", "object", "array"}
 VALID_PYTHON_STYLES = {"raw", "fastmcp"}
+
+# --- Security: identifier validation for fields rendered into generated source ---
+#
+# generator.py renders manifest.name, every tool.name, and every arg.name RAW
+# into generated Python/Node source (Jinja autoescape is off, and HTML-escaping
+# would not make an identifier safe anyway). A crafted name containing a quote +
+# newline + arbitrary code would break out of the string/identifier context and
+# inject module-level code that runs when a buyer imports/runs the server. The
+# control is a strict-charset check that fails CLOSED at parse time, before any
+# codegen can occur.
+#
+# tool.name / arg.name are rendered as BARE identifiers (`async def <name>(`,
+# `<name>: <type>`, JS object keys) -> must be a valid Python AND JS identifier.
+# manifest.name is only rendered as a string literal and used to derive an
+# output filename -> hyphens are allowed (e.g. "fleet-health") but quotes /
+# newlines / other injection characters are not.
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_SERVER_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
+
+
+def _validate_identifier(value: str, kind: str) -> str:
+    """Reject a name that is not a strict identifier. Fails closed at parse time
+    so no unsafe value can ever reach the code generator. `kind` names the field
+    for a clear error (e.g. "tool.name")."""
+    if not isinstance(value, str) or not _IDENTIFIER_RE.match(value):
+        raise ValueError(
+            f"{kind} {value!r} is not a valid identifier "
+            f"(must match {_IDENTIFIER_RE.pattern}). "
+            "Names are rendered into generated source code; only ASCII "
+            "letters, digits and underscores (not starting with a digit) "
+            "are allowed."
+        )
+    return value
+
+
+def _validate_server_name(value: str) -> str:
+    """Validate manifest.name: allows hyphens (string-literal / filename use)
+    but rejects quotes, newlines and other injection characters."""
+    if not isinstance(value, str) or not _SERVER_NAME_RE.match(value):
+        raise ValueError(
+            f"manifest.name {value!r} is not a valid server name "
+            f"(must match {_SERVER_NAME_RE.pattern}). "
+            "The name is rendered into generated source code; only ASCII "
+            "letters, digits, underscore and hyphen (not starting with a "
+            "digit) are allowed."
+        )
+    return value
 
 
 @dataclass
@@ -48,6 +96,7 @@ class ArgSpec:
     def from_dict(cls, d: dict[str, Any]) -> "ArgSpec":
         if "name" not in d:
             raise ValueError("arg missing required field 'name'")
+        _validate_identifier(str(d["name"]), "arg.name")
         arg_type = d.get("type", "string")
         if arg_type not in VALID_ARG_TYPES:
             raise ValueError(f"arg '{d['name']}': unknown type '{arg_type}'. Valid: {VALID_ARG_TYPES}")
@@ -75,6 +124,7 @@ class ToolSpec:
     def from_dict(cls, d: dict[str, Any]) -> "ToolSpec":
         if "name" not in d:
             raise ValueError("tool missing required field 'name'")
+        _validate_identifier(str(d["name"]), "tool.name")
         if "description" not in d:
             raise ValueError(f"tool '{d['name']}' missing required field 'description'")
         args = [ArgSpec.from_dict(a) for a in d.get("args", [])]
@@ -142,6 +192,8 @@ class Manifest:
         for req in ("name", "description", "runtime", "tools"):
             if req not in d:
                 raise ValueError(f"manifest missing required field '{req}'")
+
+        _validate_server_name(str(d["name"]))
 
         priority = d.get("priority", "medium")
         if priority not in VALID_PRIORITIES:
