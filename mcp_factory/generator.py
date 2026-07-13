@@ -1,6 +1,8 @@
 """Generator — scaffolds MCP server stubs from Manifest objects."""
 from __future__ import annotations
 
+import json
+import re
 from datetime import datetime, timezone
 from importlib import resources
 from pathlib import Path
@@ -29,6 +31,70 @@ _PY_TYPE_MAP = {
 
 def _pytype(arg_type: str) -> str:
     return _PY_TYPE_MAP.get(arg_type, "str")
+
+
+# --- Security: serialize untrusted free-text into code, don't hand-escape ---
+#
+# Jinja autoescape is off (these are code templates, not HTML). Free-text
+# manifest fields (tool.description, arg.description, manifest.description,
+# runtime.command) are NOT charset-validated — they may contain quotes,
+# backslashes, and the full Unicode line-terminator class. Hand-rolled
+# ``replace('"', '\\"')`` is fragile: it misses ``\r`` / U+2028 / U+2029 / NEL
+# and closing-delimiter tokens, which historically let a crafted value break
+# out of a comment/string and inject executable code on the buyer's machine.
+#
+# The durable control is to let the target language's own serializer produce
+# the literal so EVERY dangerous character is handled at once:
+#   * ``py_str``  -> repr(): a complete, correctly-quoted Python string literal.
+#   * ``js_str``  -> json.dumps(): a complete, valid JS/JSON string literal
+#                    (ensure_ascii escapes U+2028/U+2029 too).
+# For slots that must stay inside a comment/docstring (documentation lines that
+# can't be a string literal) we neutralize the only characters that can escape
+# that context:
+#   * ``docstring_safe`` collapses any run of 3+ double-quotes so free text can
+#     never close a triple-quoted (``r"""``) docstring. Newlines are legal
+#     inside a triple-quoted string, so they need no handling there.
+#   * ``js_comment`` replaces the FULL Unicode line-terminator class (not just
+#     ``\n``) with ``\n// `` so a terminator can't end the ``//`` comment and
+#     turn the remainder into live JS.
+
+# JS line terminators per the ECMAScript spec: LF, CR, CRLF, LS (U+2028),
+# PS (U+2029). Also fold the extra Unicode terminators (NEL U+0085, VT, FF)
+# that some parsers/tools treat as line breaks — belt and suspenders.
+_LINE_TERMINATORS = re.compile(r"\r\n|[\n\r  ]")
+# Any run of 3+ double-quotes could close a `"""` docstring; collapse to 2.
+_TRIPLE_DQUOTE_RUN = re.compile(r'"{3,}')
+
+
+def _py_str(value: object) -> str:
+    """Render a value as a complete, safe Python string literal via repr()."""
+    return repr(str(value))
+
+
+def _js_str(value: object) -> str:
+    """Render a value as a complete, safe JS/JSON string literal via json.dumps()."""
+    return json.dumps(str(value))
+
+
+def _docstring_safe(value: object) -> str:
+    """Neutralize a value for placement inside a triple-quoted (r\"\"\") docstring.
+
+    The only way free text can escape a ``r\"\"\"...\"\"\"`` docstring is a literal
+    run of three-or-more double-quotes closing the delimiter; collapse any such
+    run to two so no ``\"\"\"`` remains. Newlines are legal inside the docstring
+    and are preserved.
+    """
+    return _TRIPLE_DQUOTE_RUN.sub('""', str(value))
+
+
+def _js_comment(value: object) -> str:
+    """Neutralize a value for placement inside a JS ``//`` line comment.
+
+    Replaces the full Unicode line-terminator class with ``\\n// `` so a
+    terminator ends the comment cleanly and every continuation line stays
+    commented — a bare terminator can otherwise drop the remainder into live JS.
+    """
+    return _LINE_TERMINATORS.sub("\n// ", str(value))
 
 
 def _resolve_output_path(manifest: Manifest, output_dir: Path, default_name: str) -> Path:
@@ -72,6 +138,10 @@ def _get_jinja_env() -> Environment:
         keep_trailing_newline=True,
     )
     env.filters["pytype"] = _pytype
+    env.filters["py_str"] = _py_str
+    env.filters["js_str"] = _js_str
+    env.filters["docstring_safe"] = _docstring_safe
+    env.filters["js_comment"] = _js_comment
     return env
 
 

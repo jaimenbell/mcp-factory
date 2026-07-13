@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 import textwrap
 from pathlib import Path
 
@@ -161,6 +163,174 @@ class TestSecurityCodegenInjection:
         assert 'Server("test-bot")' in content
         # No injected import/os.system leaked in.
         assert "os.system" not in content
+
+
+class TestSecurityCodegenInjectionResidual:
+    """P0/P1: free-text manifest fields (description, runtime.command,
+    tool/arg.description) and env_required are the residual injection surface
+    beyond the name fields. Each crafted-but-BENIGN payload (MARKER only) must
+    result in EITHER a parse rejection OR generated output that compiles/parses
+    with the payload inert inside a proper string/comment (never live code).
+
+    Generated servers are ONLY compile/parse-checked here — never executed."""
+
+    def _write_manifest(self, tmp_path, body: str) -> Manifest:
+        mf = tmp_path / "m.yaml"
+        mf.write_text(body, encoding="utf-8")
+        return load_manifest(mf)
+
+    # --- env_required (worst vector): rejected at parse, no file ever written ---
+    def test_env_required_injection_never_generates(self, tmp_path):
+        payload = 'A"]; import os; os.system("MARKER_ENV")  #'
+        body = textwrap.dedent(f"""\
+            name: evil
+            description: d
+            runtime:
+              type: python
+              command: python.exe
+              style: fastmcp
+            env_required:
+              - '{payload}'
+            tools:
+              - name: ping
+                description: p
+        """)
+        with pytest.raises(ValueError, match="env_required"):
+            m = self._write_manifest(tmp_path, body)
+            generate_server(m, tmp_path)
+        # No .py scaffold produced.
+        assert not list(tmp_path.glob("*_server.py"))
+
+    # --- node runtime.command: newline must not end the // comment ---
+    @pytest.mark.skipif(not shutil.which("node"), reason="node not available")
+    def test_node_command_injection_parses_and_is_inert(self, tmp_path):
+        # A newline in the command previously dropped the tail into live JS.
+        body = (
+            "name: nodebot\n"
+            "description: legit\n"
+            "runtime:\n"
+            "  type: node\n"
+            '  command: "node\\nrequire(\\"child_process\\").execSync(\\"MARKER_CMD\\");//"\n'
+            "tools:\n"
+            "  - name: ping\n"
+            "    description: p\n"
+        )
+        m = self._write_manifest(tmp_path, body)
+        out = generate_server(m, tmp_path)
+        content = out.read_text(encoding="utf-8")
+        proc = subprocess.run(
+            ["node", "--check", str(out)], capture_output=True, text=True
+        )
+        assert proc.returncode == 0, f"generated JS failed to parse: {proc.stderr}"
+        # The payload must live inside a // comment line, never as bare JS.
+        for line in content.splitlines():
+            if "MARKER_CMD" in line:
+                assert line.lstrip().startswith("//"), f"live injected JS: {line!r}"
+
+    # --- node description: ALL line terminators (\r, U+2028, U+2029) neutralized ---
+    @pytest.mark.skipif(not shutil.which("node"), reason="node not available")
+    @pytest.mark.parametrize("term", ["\\r", "\\u2028", "\\u2029"])
+    def test_node_description_terminator_injection_parses(self, tmp_path, term):
+        body = (
+            "name: nodebot\n"
+            f'description: "legit{term}require(\\"child_process\\").execSync(\\"MARKER_DESC\\");//"\n'
+            "runtime:\n"
+            "  type: node\n"
+            "  command: node\n"
+            "tools:\n"
+            "  - name: ping\n"
+            "    description: p\n"
+        )
+        m = self._write_manifest(tmp_path, body)
+        out = generate_server(m, tmp_path)
+        proc = subprocess.run(
+            ["node", "--check", str(out)], capture_output=True, text=True
+        )
+        assert proc.returncode == 0, f"generated JS failed to parse: {proc.stderr}"
+
+    # --- node tool.description: rendered via json.dumps -> valid inert literal ---
+    @pytest.mark.skipif(not shutil.which("node"), reason="node not available")
+    def test_node_tool_description_injection_parses(self, tmp_path):
+        body = (
+            "name: nodebot\n"
+            "description: d\n"
+            "runtime:\n  type: node\n  command: node\n"
+            "tools:\n"
+            "  - name: ping\n"
+            '    description: "x\\nrequire(\\"child_process\\").execSync(\\"MARKER_TOOL\\")"\n'
+        )
+        m = self._write_manifest(tmp_path, body)
+        out = generate_server(m, tmp_path)
+        proc = subprocess.run(
+            ["node", "--check", str(out)], capture_output=True, text=True
+        )
+        assert proc.returncode == 0, f"generated JS failed to parse: {proc.stderr}"
+
+    # --- python tool.description / arg.description: repr -> inert string literal ---
+    def test_python_tool_and_arg_description_injection_compiles(self, tmp_path):
+        body = (
+            "name: pybot\n"
+            "description: d\n"
+            "runtime:\n  type: python\n  command: python.exe\n  style: fastmcp\n"
+            "tools:\n"
+            "  - name: ping\n"
+            "    description: 'x\"; import os; os.system(\"MARKER_TD\")  #'\n"
+            "    args:\n"
+            "      - name: a\n"
+            "        type: string\n"
+            "        description: 'y\"; import os; os.system(\"MARKER_AD\")  #'\n"
+        )
+        m = self._write_manifest(tmp_path, body)
+        out = generate_server(m, tmp_path)
+        content = out.read_text(encoding="utf-8")
+        # Must compile (no breakout SyntaxError) ...
+        compile(content, str(out), "exec")
+        # ... and the payload must sit inside a quoted description=... literal.
+        for marker in ("MARKER_TD", "MARKER_AD"):
+            for line in content.splitlines():
+                if marker in line:
+                    assert "description=" in line, f"payload escaped literal: {line!r}"
+
+    # --- python docstring description: cannot close the r\"\"\" docstring ---
+    def test_python_docstring_triple_quote_injection_compiles(self, tmp_path):
+        body = (
+            "name: pybot\n"
+            "description: 'break \"\"\" import os; os.system(\"MARKER_DOC\")'\n"
+            "runtime:\n  type: python\n  command: python.exe\n  style: fastmcp\n"
+            "tools:\n  - name: ping\n    description: p\n"
+        )
+        m = self._write_manifest(tmp_path, body)
+        out = generate_server(m, tmp_path)
+        content = out.read_text(encoding="utf-8")
+        # No SyntaxError: the triple-quote run was collapsed, docstring intact.
+        compile(content, str(out), "exec")
+        # No run of 3+ double-quotes survives inside the injected docstring text.
+        doc_body = content.split('"""', 2)
+        assert '"""' not in doc_body[1], "docstring delimiter re-opened by payload"
+
+    # --- python raw-SDK template: same free-text slots must stay inert ---
+    def test_python_raw_template_description_injection_compiles(self, tmp_path):
+        body = (
+            "name: pybot\n"
+            "description: 'break \"\"\" MARKER_RAWDOC'\n"
+            "runtime:\n  type: python\n  command: python.exe\n"
+            "tools:\n"
+            "  - name: ping\n"
+            "    description: 'x\"; import os; os.system(\"MARKER_RAW\")  #'\n"
+        )
+        m = self._write_manifest(tmp_path, body)
+        out = generate_server(m, tmp_path)
+        content = out.read_text(encoding="utf-8")
+        compile(content, str(out), "exec")
+
+    # --- regression: a clean manifest still produces valid, expected output ---
+    def test_clean_manifest_still_valid(self, tmp_path):
+        m = load_manifest(FIXTURES / "minimal.yaml")
+        out = generate_server(m, tmp_path)
+        content = out.read_text(encoding="utf-8")
+        compile(content, str(out), "exec")
+        assert 'name="ping"' in content
+        assert 'Server("test-bot")' in content
 
 
 class TestSecurityOutputPathTraversal:

@@ -54,6 +54,13 @@ VALID_PYTHON_STYLES = {"raw", "fastmcp"}
 # newlines / other injection characters are not.
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _SERVER_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
+# Env var names are rendered UNESCAPED into an executable list-assignment
+# (`REQUIRED_ENV_VARS = ["A", "B"]`) in the fastmcp scaffold. Without validation
+# a crafted entry such as `A"]; import os; os.system("...")  #` closes the list
+# literal and injects module-level code that runs on `python <server>.py`. An
+# env var name is a POSIX-shell identifier, so the safe charset is the same as
+# a Python identifier — validate every entry and fail CLOSED at parse time.
+_ENV_VAR_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def _validate_identifier(value: str, kind: str) -> str:
@@ -81,6 +88,22 @@ def _validate_server_name(value: str) -> str:
             "The name is rendered into generated source code; only ASCII "
             "letters, digits, underscore and hyphen (not starting with a "
             "digit) are allowed."
+        )
+    return value
+
+
+def _validate_env_var_name(value: str) -> str:
+    """Reject an env_required entry that is not a valid environment variable
+    name. The value is rendered UNESCAPED into an executable list literal in the
+    fastmcp scaffold; fail closed at parse time so no injection payload can ever
+    reach the code generator."""
+    if not isinstance(value, str) or not _ENV_VAR_RE.match(value):
+        raise ValueError(
+            f"env_required entry {value!r} is not a valid environment variable "
+            f"name (must match {_ENV_VAR_RE.pattern}). "
+            "Entries are rendered into generated source code; only ASCII "
+            "letters, digits and underscores (not starting with a digit) "
+            "are allowed."
         )
     return value
 
@@ -204,7 +227,7 @@ class Manifest:
             description=str(d["description"]),
             runtime=RuntimeSpec.from_dict(d["runtime"]),
             tools=[ToolSpec.from_dict(t) for t in d["tools"]],
-            env_required=[str(e) for e in d.get("env_required", [])],
+            env_required=[_validate_env_var_name(str(e)) for e in d.get("env_required", [])],
             env={str(k): str(v) for k, v in d.get("env", {}).items()},
             tags=[str(t) for t in d.get("tags", [])],
             priority=priority,

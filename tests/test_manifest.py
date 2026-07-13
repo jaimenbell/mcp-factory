@@ -236,6 +236,89 @@ class TestSecurityIdentifierValidation:
         assert t.args[0].name == "bot_name"
 
 
+class TestSecurityEnvRequiredValidation:
+    """P0: manifest.env_required[*] is rendered UNESCAPED into an executable list
+    literal (`REQUIRED_ENV_VARS = ["A", ...]`) in the fastmcp scaffold. A crafted
+    entry closes the list and injects module-level code that runs on
+    `python <server>.py`. Must be rejected at parse time (fail closed)."""
+
+    # Closes the list literal, injects an import + os.system, comments the tail.
+    MALICIOUS_ENV = 'A"]; import os; os.system("MARKER_ENV")  #'
+
+    def test_malicious_env_required_rejected(self, tmp_path):
+        bad = tmp_path / "bad.yaml"
+        bad.write_text(textwrap.dedent(f"""\
+            name: safe-server
+            description: test
+            runtime:
+              type: python
+              command: python.exe
+              style: fastmcp
+            env_required:
+              - '{self.MALICIOUS_ENV}'
+            tools:
+              - name: ping
+                description: p
+        """))
+        with pytest.raises(ValueError, match="env_required"):
+            load_manifest(bad)
+
+    def test_env_required_with_quote_rejected(self, tmp_path):
+        bad = tmp_path / "bad.yaml"
+        bad.write_text(textwrap.dedent("""\
+            name: safe-server
+            description: test
+            runtime:
+              type: python
+              command: python.exe
+            env_required:
+              - 'HAS"QUOTE'
+            tools:
+              - name: ping
+                description: p
+        """))
+        with pytest.raises(ValueError, match="env_required"):
+            load_manifest(bad)
+
+    def test_env_required_with_hyphen_rejected(self, tmp_path):
+        """Env var names cannot contain hyphens (not a valid identifier charset)."""
+        bad = tmp_path / "bad.yaml"
+        bad.write_text(textwrap.dedent("""\
+            name: safe-server
+            description: test
+            runtime:
+              type: python
+              command: python.exe
+            env_required:
+              - BAD-NAME
+            tools:
+              - name: ping
+                description: p
+        """))
+        with pytest.raises(ValueError, match="env_required"):
+            load_manifest(bad)
+
+    def test_valid_env_required_accepted(self, tmp_path):
+        """Normal env var names (EXAMPLE_API_KEY, _PRIVATE, KEY2) must still parse."""
+        mf = tmp_path / "ok.yaml"
+        mf.write_text(textwrap.dedent("""\
+            name: safe-server
+            description: test
+            runtime:
+              type: python
+              command: python.exe
+            env_required:
+              - EXAMPLE_API_KEY
+              - _PRIVATE
+              - KEY2
+            tools:
+              - name: ping
+                description: p
+        """))
+        m = load_manifest(mf)
+        assert m.env_required == ["EXAMPLE_API_KEY", "_PRIVATE", "KEY2"]
+
+
 class TestArgSpec:
     def test_optional_arg_required_false(self):
         arg = ArgSpec.from_dict({"name": "hours", "type": "number", "required": False})
