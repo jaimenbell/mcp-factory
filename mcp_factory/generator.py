@@ -35,8 +35,20 @@ def _pytype(arg_type: str) -> str:
 
 # --- Security: serialize untrusted free-text into code, don't hand-escape ---
 #
-# Jinja autoescape is off (these are code templates, not HTML). Free-text
-# manifest fields (tool.description, arg.description, manifest.description,
+# Autoescape posture: these templates emit source CODE (.py/.js), not HTML, so
+# HTML autoescaping them would corrupt the output. The real, load-bearing
+# control against codegen injection is therefore NOT autoescape — it is the
+# two layers below: (1) parse-time charset validation of every identifier slot
+# in manifest.py (manifest.name / tool.name / arg.name / env_required, which
+# render as bare identifiers or unescaped list entries and so must fail closed
+# if not a strict identifier), and (2) serializer filters here (py_str / js_str
+# / docstring_safe / js_comment) for every free-text slot. autoescape is scoped
+# with ``select_autoescape(["html", "htm", "xml"])`` — the Jinja-recommended
+# default — so it is a no-op for the current code templates but auto-escapes any
+# HTML-family template that might later be added (defense in depth), rather than
+# the previous ``select_autoescape([])`` which disabled escaping unconditionally.
+#
+# Free-text manifest fields (tool.description, arg.description, manifest.description,
 # runtime.command) are NOT charset-validated — they may contain quotes,
 # backslashes, and the full Unicode line-terminator class. Hand-rolled
 # ``replace('"', '\\"')`` is fragile: it misses ``\r`` / U+2028 / U+2029 / NEL
@@ -132,7 +144,7 @@ def _resolve_output_path(manifest: Manifest, output_dir: Path, default_name: str
 def _get_jinja_env() -> Environment:
     env = Environment(
         loader=FileSystemLoader(str(_TEMPLATES_DIR)),
-        autoescape=select_autoescape([]),
+        autoescape=select_autoescape(["html", "htm", "xml"]),
         trim_blocks=True,
         lstrip_blocks=True,
         keep_trailing_newline=True,

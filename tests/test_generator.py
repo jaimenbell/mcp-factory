@@ -332,6 +332,45 @@ class TestSecurityCodegenInjectionResidual:
         assert 'name="ping"' in content
         assert 'Server("test-bot")' in content
 
+    # --- autoescape posture: scoped to HTML-family, no-op for code templates ---
+    def test_autoescape_scoped_not_blanket_disabled(self):
+        """The Jinja env must not disable autoescape unconditionally.
+
+        The real injection control is the serializer/validation layers, but the
+        env is configured with the Jinja-recommended ``select_autoescape`` so
+        that any HTML-family template later added auto-escapes, while the current
+        code templates (.j2 -> .py/.js) are left unescaped. Guards against a
+        regression back to ``select_autoescape([])`` (escape nothing) and against
+        blanket autoescape (which would corrupt generated code).
+        """
+        from mcp_factory.generator import _get_jinja_env
+
+        env = _get_jinja_env()
+        # HTML-family names escape; code-template names (and no-name) do not.
+        assert env.autoescape("page.html") is True
+        assert env.autoescape("data.xml") is True
+        assert env.autoescape("python_fastmcp.j2") is False
+        assert env.autoescape("node_server.js.j2") is False
+        # No-name templates fail safe (escape) per select_autoescape's default;
+        # the generator only ever loads named .j2 templates, so this never bites.
+        assert env.autoescape(None) is True
+
+    def test_html_family_template_actually_escapes(self, tmp_path):
+        """Concrete proof the posture is live: a rendered .html template escapes
+        an injected ``<`` while a code template renders the same value raw
+        (serializer, not autoescape, is what protects the code path)."""
+        from jinja2 import DictLoader
+
+        from mcp_factory.generator import _get_jinja_env
+
+        env = _get_jinja_env()
+        env.loader = DictLoader(
+            {"x.html": "{{ v }}", "x.py.j2": "{{ v }}"}
+        )
+        payload = '<b>&"'
+        assert env.get_template("x.html").render(v=payload) == "&lt;b&gt;&amp;&#34;"
+        assert env.get_template("x.py.j2").render(v=payload) == payload
+
 
 class TestSecurityOutputPathTraversal:
     """P2: manifest.runtime.output must not escape the output dir."""
