@@ -495,6 +495,23 @@ def test_git_ls_files_returns_none_for_non_git_dir(tmp_path: Path):
     assert result is None
 
 
+def test_git_ls_files_ignores_leaked_git_env(tmp_path: Path, monkeypatch):
+    """_git_ls_files_skill_mds must be hermetic w.r.t. inherited GIT_* env.
+
+    Regression guard for the test-suite non-determinism root-caused 2026-07-21:
+    a parent process (a git hook, or a proof-checker that ran under one) leaks
+    GIT_DIR/GIT_WORK_TREE into the environment. Without stripping them, `git
+    ls-files` answers for the *leaked* repo regardless of cwd, so a non-git
+    tmp dir is wrongly reported as tracked — corrupting discover() and flipping
+    ~20 downstream tests to failure (215 -> ~195 phantom count).
+    """
+    repo_root = Path(__file__).resolve().parent.parent
+    monkeypatch.setenv("GIT_DIR", str(repo_root / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(repo_root))
+    # tmp_path is not a git repo; with leaked GIT_* stripped this must be None.
+    assert wfr._git_ls_files_skill_mds(tmp_path) is None
+
+
 def test_relative_to_research_strips_prefix():
     p = Path("C:/Users/owner/projects/my-skills/research/bot-ops/x/SKILL.md")
     assert wfr._relative_to_research(p) == "research/bot-ops/x/SKILL.md"

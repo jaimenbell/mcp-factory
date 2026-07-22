@@ -134,13 +134,35 @@ def _git_ls_files_skill_mds(root: Path) -> Optional[list[Path]]:
     Falls back to None (triggering rglob) when git is unavailable or the directory
     is not inside a git repo. Using git ls-files ensures the registry only tracks
     SKILL files committed to the main branch, excluding worktree-only work-in-progress.
+
+    The repo-location ``GIT_*`` environment variables (set by git when it invokes
+    hooks, or leaked by a parent process that ran under one) are stripped before the
+    subprocess so git discovers the repository from ``cwd=root`` as intended.  Without
+    this, an inherited ``GIT_DIR``/``GIT_WORK_TREE`` makes ``git ls-files`` answer for
+    the leaked repo regardless of ``cwd`` — silently corrupting discovery and making
+    the test suite non-deterministic depending on the caller's environment.
     """
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k
+        not in (
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_OBJECT_DIRECTORY",
+            "GIT_COMMON_DIR",
+            "GIT_PREFIX",
+            "GIT_CEILING_DIRECTORIES",
+        )
+    }
     try:
         proc = subprocess.run(
             ["git", "ls-files", "--", "*/SKILL.md", "SKILL.md"],
             capture_output=True,
             text=True,
             cwd=root,
+            env=env,
             timeout=10,
         )
     except (OSError, subprocess.TimeoutExpired):
