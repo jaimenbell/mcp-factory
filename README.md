@@ -6,9 +6,9 @@ tags: [mcp, factory, claude]
 
 # MCP Factory
 
-[![CI](https://github.com/jaimenbell/MCP-Factory/actions/workflows/ci.yml/badge.svg)](https://github.com/jaimenbell/MCP-Factory/actions/workflows/ci.yml) ![tests](https://img.shields.io/badge/tests-224%20passing-brightgreen) ![python](https://img.shields.io/badge/python-%E2%89%A53.12-blue) [![PyPI](https://img.shields.io/pypi/v/jaimenbell-mcp-factory)](https://pypi.org/project/jaimenbell-mcp-factory/) [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.jaimenbell%2Fmcp--factory-blueviolet)](https://registry.modelcontextprotocol.io/)
+[![CI](https://github.com/jaimenbell/MCP-Factory/actions/workflows/ci.yml/badge.svg)](https://github.com/jaimenbell/MCP-Factory/actions/workflows/ci.yml) ![tests](https://img.shields.io/badge/tests-222%20passing-brightgreen) ![python](https://img.shields.io/badge/python-%E2%89%A53.12-blue) [![PyPI](https://img.shields.io/pypi/v/jaimenbell-mcp-factory)](https://pypi.org/project/jaimenbell-mcp-factory/) [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.jaimenbell%2Fmcp--factory-blueviolet)](https://registry.modelcontextprotocol.io/)
 
-> *The test count is verifiable below (`python -m pytest tests/` → **224 passed, 8 skipped**) and enforced in CI by `scripts/check_readme_counts.py`, which fails the build if this README's counts drift from the live suite.*
+> *The test count is verifiable below (`python -m pytest tests/` → **222 passed, 10 skipped**) and enforced in CI by `scripts/check_readme_counts.py`, which fails the build if this README's counts drift from the live suite.*
 
 ## 60-Second Quickstart
 
@@ -35,9 +35,9 @@ This repo is public **so you can verify the discipline instead of taking my word
 | **Validated, env-scoped manifests** | [`mcp_factory/manifest.py`](mcp_factory/manifest.py) | strict `from_dict` validation (raises on missing/invalid fields); the `env_required` / `env` model that scopes which secrets a server may see |
 | **Fail-soft subprocess proxying** | [`mcp_factory/runtime/subprocess_adapter.py`](mcp_factory/runtime/subprocess_adapter.py) | typed `SubprocessError`, lazy start, JSON-RPC error surfacing, `timeout`/`OSError`-guarded teardown + `atexit` cleanup — a dead bot returns a clean error, it doesn't crash the hub |
 | **Collision-safe, manifest-driven registry** | [`mcp_factory/runtime/registry.py`](mcp_factory/runtime/registry.py) · [`registry.json`](registry.json) | `CollisionError` on duplicate `<bot>.<tool>` names; the registry is built from manifests, not hand-maintained |
-| **Tested on a clean checkout** | [`tests/`](tests/) | **224 passed, 8 skipped, 0 failed** (Python 3.12); the 8 skips are real integration tests that no-op when external resources are absent |
+| **Tested on a clean checkout** | [`tests/`](tests/) | **222 passed, 10 skipped, 0 failed** (Python 3.12); the 10 skips are real integration tests that no-op when external resources are absent |
 
-> **Honesty rails:** `224` is the real, reproducible count on this checkout. mcp-factory generates the *scaffold* and runs the hub — it does not "generate the production server" or carry any client/CI claims. The hardened production layer (per-tool auth boundaries, the full failure set, two-axis version-pinning) is built per engagement on top of this engine. That applies to both Python scaffold styles below — see "Two Python styles" for exactly what the fastmcp variant does and doesn't add on top of that baseline.
+> **Honesty rails:** `222` is the real, reproducible count on a clean checkout — the same number the public CI run produces and gates on. mcp-factory generates the *scaffold* and runs the hub — it does not "generate the production server" or carry any client/CI claims. The hardened production layer (per-tool auth boundaries, the full failure set, two-axis version-pinning) is built per engagement on top of this engine. That applies to both Python scaffold styles below — see "Two Python styles" for exactly what the fastmcp variant does and doesn't add on top of that baseline.
 
 ## Quick Start
 
@@ -319,12 +319,14 @@ confirms the factory produces a matching `~/.claude.json` entry.
 python -m pytest tests/ -v
 ```
 
-On a clean checkout (Python 3.12), with `pip install -e .[dev]`: **224 passed, 8 skipped, 0 failed.**
+On a clean checkout (Python 3.12), with `pip install -e .[dev]`: **222 passed, 10 skipped, 0 failed** — the same numbers the public CI run produces and gates on.
 
-The 8 skipped tests are real integration tests that need external resources and skip automatically when those are absent:
+The 10 skipped tests are real integration tests that need external resources and skip automatically when those are absent:
 - `test_integration_fleet_health.py` (5 tests) requires a fleet-health `server.py` on disk (`FLEET_HEALTH_SERVER_PATH`).
+- `test_smoke_hub.py` (4 tests) requires a live bot fleet to discover (`MCP_FACTORY_SMOKE_ROOTS`).
 - `test_node_template.py` (1 test) requires `node` and `@modelcontextprotocol/sdk` (`node_modules/`) to be present.
-- `test_watcher.py` (2 tests) requires the `watchdog` package.
+
+(On the maintainer's fleet machine, where the fleet-health server and live bots exist, the skipped integration tests run for real and the passed count is higher — but this README claims only what a clean checkout and public CI reproduce.)
 
 The fastmcp-style template tests (`test_fastmcp_template.py`) are not in this skip list — `fastmcp` is installed as a `[dev]` extra, so they run for real on a standard dev setup.
 

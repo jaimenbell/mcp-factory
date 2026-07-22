@@ -18,7 +18,7 @@ dependencies = [
 mcp-factory-hub = "mcp_factory.cli:run"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-cov", "fastmcp>=3.4.2"]
+dev = ["pytest>=8.0", "pytest-cov", "fastmcp>=3.4.2", "watchdog>=4.0"]
 # Only needed to run servers generated with runtime.style: fastmcp — the
 # factory itself (manifest/generator/hub) has no fastmcp import.
 fastmcp = ["fastmcp>=3.4.2"]
