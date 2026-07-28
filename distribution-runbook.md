@@ -64,10 +64,10 @@ tar -xzf "$dest\mcp-publisher.tar.gz" -C $dest
 ```powershell
 # PowerShell -- add to PATH for this session, then validate each server.json
 $env:Path = "$env:USERPROFILE\tools\mcp-publisher;$env:Path"
-mcp-publisher validate C:\Users\jaime\projects\mcp-factory\server.json
-mcp-publisher validate C:\Users\jaime\projects\desktop-mcp\server.json
-mcp-publisher validate C:\Users\jaime\projects\github-mcp\server.json
-mcp-publisher validate C:\Users\jaime\projects\bus-mcp\server.json
+mcp-publisher validate $env:USERPROFILE\projects\mcp-factory\server.json
+mcp-publisher validate $env:USERPROFILE\projects\desktop-mcp\server.json
+mcp-publisher validate $env:USERPROFILE\projects\github-mcp\server.json
+mcp-publisher validate $env:USERPROFILE\projects\bus-mcp\server.json
 ```
 
 `validate` only checks the file against the schema -- it does not publish and
@@ -83,7 +83,7 @@ mcp-publisher login github
 
 ```powershell
 # PowerShell -- publish one server (repeat per repo, run from inside each repo dir)
-mcp-publisher publish C:\Users\jaime\projects\mcp-factory\server.json
+mcp-publisher publish $env:USERPROFILE\projects\mcp-factory\server.json
 ```
 
 Publishing has no review queue -- it goes live same-day. Do this only after
