@@ -1,9 +1,7 @@
 # MCP Registry Distribution Runbook
 
 Prep-only doc for the registry-blitz lane (2026-07-03). Covers steps 2-4 of the
-submission checklist in the source brief:
-[[2026-07-02 MCP Registry Distribution + Inbound (research-lite)]] (vault path:
-`C:\Users\jaime\projects\the vault\research\2026-07-02 MCP Registry Distribution + Inbound (research-lite).md`).
+submission checklist in the source brief (internal research note, 2026-07-02).
 
 Step 1 (server.json per repo) is done separately -- see `server.json` in this repo,
 `desktop-mcp`, `github-mcp`, `bus-mcp` (all on branch `lane/registry-blitz`).
@@ -147,8 +145,8 @@ the `jaimenbell` GitHub account/namespace).
 
 ### Suggested tiers (reference the live consulting offers)
 
-Live offers as of 2026-06-22 (validated against market 2026-07-02, see
-`the vault\research\2026-06-22 Automation Services — Offer & Positioning.md`):
+Live offers as of 2026-06-22 (validated against market 2026-07-02, per the
+internal offer & positioning note):
 MCP Integration Sprint $8k (anchor tier) / $5k lean, $12-25k multi-source,
 $1.5k paid MCP Spike, $175/hr fallback, $1.5-4k/mo Reliability Retainer.
 
