@@ -1,9 +1,3 @@
----
-title: MCP Factory
-type: project-readme
-tags: [mcp, factory, claude]
----
-
 # MCP Factory
 
 [![CI](https://github.com/jaimenbell/MCP-Factory/actions/workflows/ci.yml/badge.svg)](https://github.com/jaimenbell/MCP-Factory/actions/workflows/ci.yml) ![tests](https://img.shields.io/badge/tests-222%20passing-brightgreen) ![python](https://img.shields.io/badge/python-%E2%89%A53.12-blue) [![PyPI](https://img.shields.io/pypi/v/jaimenbell-mcp-factory)](https://pypi.org/project/jaimenbell-mcp-factory/) [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.jaimenbell%2Fmcp--factory-blueviolet)](https://registry.modelcontextprotocol.io/)
