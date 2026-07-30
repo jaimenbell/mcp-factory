@@ -152,7 +152,11 @@ class TestFastmcpTemplateGeneration:
     def test_generated_file_pins_fastmcp_version(self, fastmcp_manifest, tmp_path):
         out = generate_server(fastmcp_manifest, tmp_path, force=True)
         content = out.read_text()
-        assert "fastmcp>=3.4.2" in content
+        assert "fastmcp==3.4.2" in content
+        # A floor pin is not a pin: `>=3.4.2` silently admits FastMCP 4.0.0b1,
+        # a beta that breaks sampling/roots. Guard the float-back, not just the
+        # current string.
+        assert "fastmcp>=" not in content
 
     def test_arg_schema_fidelity_required_and_optional(self, fastmcp_manifest, tmp_path):
         """Required args have no default; optional args default to None via Optional[...]."""
