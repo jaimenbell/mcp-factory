@@ -128,7 +128,7 @@ Both styles read the same `tools:` / `env_required:` fields and produce a server
 
 | | `style: raw` (`python_server.py.j2`) | `style: fastmcp` (`python_fastmcp.j2`) |
 |---|---|---|
-| SDK | official `mcp` package, `mcp.server.Server` | `fastmcp` (pinned `fastmcp>=3.4.2`, tested against 3.4.2) |
+| SDK | official `mcp` package, `mcp.server.Server` | `fastmcp` (pinned exact `fastmcp==3.4.2` — 4.0.0b1 is a beta that breaks sampling/roots, do not float) |
 | Tool registration | manual `@server.list_tools()` / `@server.call_tool()` dispatch | one `@mcp.tool(...)`-decorated function per tool |
 | Arg schema | hand-built JSON Schema dict per arg | `Annotated[type, Field(description=...)]` on real Python parameters — FastMCP derives the JSON Schema, including required/optional, from the signature |
 | Tool body | `# TODO: implement` stub | same stub, wrapped in `try/except Exception` — a runtime error in a filled-in implementation returns a structured `{"status": "error", ...}` instead of crashing the process |
