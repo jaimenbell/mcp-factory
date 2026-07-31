@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jaimenbell-mcp-factory"
-version = "0.1.1"
+version = "0.1.2"
 readme = "README.md"
 description = "Manifest-driven MCP server scaffolder and runtime hub for Claude tool integrations"
 requires-python = ">=3.12"
