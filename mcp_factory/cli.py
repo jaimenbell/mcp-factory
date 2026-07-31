@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -136,6 +137,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="(--serve) Hot-reload manifests on change (requires watchdog pkg)",
     )
+    p.add_argument(
+        "--no-demo",
+        action="store_true",
+        dest="no_demo",
+        help=(
+            "(--serve) Disable the bundled demo-bot fallback that fires when no "
+            "real manifests are found (also settable via MCP_FACTORY_NO_DEMO=1)"
+        ),
+    )
     p.add_argument("--dry-run", action="store_true", help="Preview only, no files written")
     p.add_argument(
         "--verify",
@@ -175,6 +185,13 @@ def _print_err(msg: str) -> None:
 def _run_serve(args: argparse.Namespace) -> int:
     from mcp_factory.scan import scan_manifests
 
+    # An operator who explicitly pointed --scan-root / MCP_FACTORY_SCAN_ROOT at
+    # a root gets exactly what that root contains, including nothing — the demo
+    # fallback below must never override an intentional empty result.
+    explicit_root_override = bool(args.scan_roots) or bool(
+        os.environ.get("MCP_FACTORY_SCAN_ROOT")
+    )
+
     roots = [Path(r) for r in (args.scan_roots or [str(_DEFAULT_SCAN_ROOT)])]
     manifests = []
     seen_names: set[str] = set()
@@ -195,7 +212,38 @@ def _run_serve(args: argparse.Namespace) -> int:
                     manifests.append(manifest)
 
     if not manifests:
-        print("[hub] No manifests found — hub will serve only meta-tools.", file=sys.stderr)
+        no_demo = bool(args.no_demo) or bool(os.environ.get("MCP_FACTORY_NO_DEMO"))
+        demo_manifest = None
+        if explicit_root_override:
+            print(
+                "[hub] No manifests found under the explicit scan-root override -- "
+                "hub will serve only meta-tools (demo fallback does not apply to an "
+                "explicit --scan-root/MCP_FACTORY_SCAN_ROOT).",
+                file=sys.stderr,
+            )
+        elif no_demo:
+            print(
+                "[hub] No manifests found (demo fallback disabled via --no-demo / "
+                "MCP_FACTORY_NO_DEMO) -- hub will serve only meta-tools.",
+                file=sys.stderr,
+            )
+        else:
+            from mcp_factory.demo import DEMO_BOT_NAME, load_demo_manifest
+
+            demo_manifest = load_demo_manifest()
+            if demo_manifest is not None:
+                print(
+                    f"[hub] No real manifests found under the default scan root -- "
+                    f"registering bundled DEMO bot '{DEMO_BOT_NAME}' (NOT a real "
+                    "integration; disable with --no-demo or MCP_FACTORY_NO_DEMO=1).",
+                    file=sys.stderr,
+                )
+                manifests = [demo_manifest]
+            else:
+                print(
+                    "[hub] No manifests found — hub will serve only meta-tools.",
+                    file=sys.stderr,
+                )
 
     from mcp_factory.runtime.hub import run_hub
     asyncio.run(run_hub(manifests))

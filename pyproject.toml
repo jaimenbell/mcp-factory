@@ -33,4 +33,4 @@ testpaths = ["tests"]
 include = ["mcp_factory*"]
 
 [tool.setuptools.package-data]
-mcp_factory = ["templates/*.j2"]
+mcp_factory = ["templates/*.j2", "demo/*.yaml", "demo/*.py"]

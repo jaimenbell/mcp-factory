@@ -1,0 +1,31 @@
+name: mcp-factory-demo
+description: >
+  [DEMO BOT -- NOT A REAL INTEGRATION] Bundled inside mcp-factory itself so a
+  fresh install, or a scanning sandbox with no other bots configured, shows a
+  working example instead of zero tools. This registers automatically ONLY
+  when a `--serve` scan finds no real */mcp.yaml manifests under the scan
+  root AND no explicit --scan-root / MCP_FACTORY_SCAN_ROOT override was
+  given (an intentional empty scan root is respected as-is). Activation
+  always prints a loud stderr marker naming what happened. Disable entirely
+  with --no-demo or MCP_FACTORY_NO_DEMO=1. See mcp_factory/demo/__init__.py
+  and mcp_factory/cli.py::_run_serve.
+runtime:
+  type: python
+  command: python
+  script: demo_server.py
+tools:
+  - name: say_hello
+    description: >
+      [DEMO] Returns a canned greeting proving the hub is wired up
+      correctly. This is a demonstration tool bundled with mcp-factory, not
+      a real integration -- see the bot description for details.
+    args:
+      - name: name
+        type: string
+        required: false
+        description: Optional name to greet.
+env_required: []
+env: {}
+tags:
+  - demo
+priority: low
