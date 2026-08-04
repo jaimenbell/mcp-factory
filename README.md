@@ -31,7 +31,7 @@ This repo is public **so you can verify the discipline instead of taking my word
 | **Collision-safe, manifest-driven registry** | [`mcp_factory/runtime/registry.py`](mcp_factory/runtime/registry.py) · [`registry.json`](registry.json) | `CollisionError` on duplicate `<bot>.<tool>` names; the registry is built from manifests, not hand-maintained |
 | **Tested on a clean checkout** | [`tests/`](tests/) | **233 passed, 6 skipped, 0 failed** (Python 3.12); the 6 skips are real integration tests that no-op when external resources are absent |
 
-> **Honesty rails:** `222` is the real, reproducible count on a clean checkout — the same number the public CI run produces and gates on. mcp-factory generates the *scaffold* and runs the hub — it does not "generate the production server" or carry any client/CI claims. The hardened production layer (per-tool auth boundaries, the full failure set, two-axis version-pinning) is built per engagement on top of this engine. That applies to both Python scaffold styles below — see "Two Python styles" for exactly what the fastmcp variant does and doesn't add on top of that baseline.
+> **Honesty rails:** `233` is the real, reproducible count on a clean checkout — the same number the public CI run produces and gates on. mcp-factory generates the *scaffold* and runs the hub — it does not "generate the production server" or carry any client/CI claims. The hardened production layer (per-tool auth boundaries, the full failure set, two-axis version-pinning) is built per engagement on top of this engine. That applies to both Python scaffold styles below — see "Two Python styles" for exactly what the fastmcp variant does and doesn't add on top of that baseline.
 
 ## Quick Start
 
